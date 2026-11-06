@@ -1,11 +1,10 @@
 import argparse
 from pathlib import Path
-import cv2
 
-
-
-#   - Adım 3'te: pipeline modülleri (io_utils, preprocess, corners, visualize)
-#     Örn: from pipeline.io_utils import load_image, save_image
+from pipeline.io_utils import load_image, save_image
+from pipeline.preprocess import preprocess
+from pipeline.corners import harris_response, find_candidates, to_original
+from pipeline.visualize import draw_harris
 
 DEV_IMAGE = Path("data/dev/images/dev_01.jpg")
 DEFAULT_OUTDIR = Path("out")
@@ -31,33 +30,23 @@ def list_images(folder):
 
 
 def process_image(image_path, outdir):
-    """Tek bir görüntüyü pipeline'dan geçirir ve çıktılarını outdir'e yazar.
 
-    Burada algoritma YAZILMAZ; sadece pipeline fonksiyonları sırayla çağrılır.
-    Hata yakalamaz: hata olursa yukarıya (main'e) fırlatır.
-    """
     name = image_path.stem
 
-    if name == "dev_05":
-        raise ValueError("dev_05 is a tricky image, skip it for now")
-
-    image = cv2.imread(str(image_path)) #io_utils yazılınca değişecek
-    if image is None:
-        raise ValueError(f"Could not read image {image_path}")
+    image = load_image(image_path)
     print(name, "image shape", image.shape)
 
-    # pre = preprocess(image) #preprocess yazılacak
-    # response = harris_response(pre.gray) 
-    # candidates = find_candidates(response)
-    # candidates_orig = to_original(candidates, pre.scale)
-    # print(name, "number of candidates", len(candidates))
+    pre = preprocess(image)
+    response = harris_response(pre.gray)
+    candidates = find_candidates(response)
+    candidates_orig = to_original(candidates, pre.scale)
+    print(name, "number of candidates", len(candidates))
 
-    # vis = draw_harris(pre.gray, response, candidates)
-    # save_image(outdir / f"{name}_harris.png", vis)
+    vis = draw_harris(pre.gray, response, candidates)
+    save_image(outdir / f"{name}_harris.png", vis)
 
-    # --- İleriki fazlar -----------------------------------------------------
+    #  İleriki fazlar 
     # Faz 2: candidates_orig içinden dış 4 köşeyi seç -> rectify -> cells/ocr -> validate
-    ...
 
 def run_batch(folder, outdir):
     images = list_images(folder)

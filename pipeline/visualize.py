@@ -1,15 +1,20 @@
-"""Debug görselleri. Burada sadece ÇİZİM yapılır; hesaplama ve dosya yazma yapılmaz."""
-
-# TODO(1): importlar – cv2, numpy as np
+import cv2
+import numpy as np
 
 
 def draw_harris(gray, response, candidates):
-    """<name>_harris.png içeriği: R haritası + adaylar işaretli, BGR görüntü döndürür."""
-    # TODO(2): R haritasını görünür yap
-    #   - R çok geniş bir aralıkta değişir ve negatif değerler alır. Doğrudan uint8'e çevirmek işe yaramaz.
-    #   - Seçenekler: sadece pozitif kısmı al, log/sqrt ile sıkıştır, 0..255'e normalize et
-    #   - cv2.applyColorMap ile renklendir (örn. COLORMAP_JET)
-    # TODO(3): okunabilirlik için gri görüntüyle karıştır (cv2.addWeighted) – isteğe bağlı
-    # TODO(4): her aday için cv2.circle; koordinatlar int ve (x, y) sırasında olmalı
-    # TODO(5): sol üste aday sayısını yaz (cv2.putText)
-    ...
+
+    positive = np.clip(response, 0, None)
+    compressed = np.sqrt(positive)
+    norm = cv2.normalize(compressed, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    heat = cv2.applyColorMap(norm, cv2.COLORMAP_JET)
+
+    base = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+    vis = cv2.addWeighted(base, 0.5, heat, 0.5, 0)
+
+    for x, y in candidates:
+        cv2.circle(vis, (int(x), int(y)), 4, (0, 255, 0), 1)
+
+    cv2.putText(vis, f"candidates: {len(candidates)}", (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+    return vis

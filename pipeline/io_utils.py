@@ -1,24 +1,16 @@
-"""Dosya okuma/yazma yardımcıları. Görüntü işleme burada YAPILMAZ."""
-
-# TODO(1): importlar – cv2, numpy as np, pathlib.Path
-
+import cv2
 
 def load_image(path):
-    """Görüntüyü BGR NumPy dizisi olarak okur.
-
-    Dosya okunamazsa None döndürmez, hata fırlatır.
-    """
-    # TODO(2):
-    #   - cv2.imread Path değil str ister
-    #   - dönen değer None ise raise (hangi hata türü? FileNotFoundError mantıklı)
-    #   - Hata mesajına yolu koy ki batch çıktısında hangi dosya olduğu görünsün
-    ...
+    
+    image = cv2.imread(str(path))
+    if image is None:
+        raise FileNotFoundError(f"could not read image {path}")
+    return image
 
 
 def save_image(path, image):
-    """Görüntüyü yazar; klasör yoksa oluşturur."""
-    # TODO(3):
-    #   - path.parent.mkdir(parents=True, exist_ok=True)
-    #   - cv2.imwrite(str(path), image)
-    #   - imwrite başarısız olursa False döner -> kontrol edip raise et
-    ...
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    success = cv2.imwrite(str(path), image)
+    if not success:
+        raise OSError(f"path could not be written {path}")
