@@ -34,6 +34,16 @@
 
 ## Review notu
 
+**Sonuç:** Dev set'te 20 karenin hepsi düzeltildi (`analysis/eval_rectify.py`, pipeline'ın köşeleriyle). A3 köşe hatası 15,9–260,8 px, A4 RMS 4,1–54,6 px. H4 dört köşeyi en fazla 2,8e-5 px sapmayla eşliyor. A4'te 20 karenin hepsinde 4 köşe de inlier ve `np.linalg.lstsq` ile fark en fazla 4e-12, yani `estimateAffine2D` gerçekten en küçük kareler çözümü veriyor. Hedef köşeler −0.5 … 449.5; `dev_07`'de 0 … 450 ile de denendi, A3 hatası ve RMS değişmedi. Kıvrımlı `dev_20`'de H4 sonrası çizgiler hâlâ dalgalı.
+
+**Kişisel set:** 12 kare `analysis/annotate.py` ile işaretlendi. Pipeline'ın köşe hatası bu anotasyonlara göre ortalama %0,17, en kötü %0,36 (`s042401168_08`), yani dev set ile aynı seviyede. `s042401168_09` ve `_11`'de köşeler doğru bulunuyor (%0,18 ve %0,15), ama sıra bir köşe kaydığı için doğrudan ölçülünce hata %100 çıkıyor.
+
+**Anotasyonda yaşananlar:**
+- `10`–`12`'de ilk seferde kalın çerçevenin iç köşesi tıklandı ve hata %2,4–2,7 çıktı. Dış köşeyle yeniden yapıldı. Kural araca ve `data/personal/README.md`'ye yazıldı.
+- `s042401168_10`'un sağ alt köşesi gölgede kaldığı için bir kez daha işaretlendi (hata %0,28 → %0,20).
+- `06` ve `07`'de grid'in 8. satırı eksik yazılmıştı, `05` ile karşılaştırılarak düzeltildi.
+- Köşeler çapraz sırada tıklanınca önizleme bozuluyordu. Araç artık köşeleri merkez etrafında açıya göre sıralıyor; doğru başlangıç köşesi önizlemede `o` tuşuyla seçiliyor.
+
 - **Yan duran kareler (`s042401168_09`, `_11`):** rakamlar yan çıkıyor ve köşe sırası bulmacanın gerçek TL'sinden başlamıyor. Bu yüzden JSON'daki köşeler ve matrisler de yanlış yönde. Kontrol edilecek: EXIF Orientation mı (pipeline ile anotasyon aracı aynı şekilde okuyor mu), yoksa fotoğraf gerçekten 90° dönük mü? Gerçekten dönükse şartnamenin "roughly upright, ±30°" kapsamı dışında kalıyor (90°+ dönüş bonus B4). Anotasyonda TL gerçek sol üst olarak işaretlenecek. Bu iki kare Failure analysis için örnek olacak; C1–C5 kapsamı bunlara dayanmamalı.
 - **EXIF kontrolünün sonucu ve anotasyon aracı:** `s042401168_09`'da EXIF Orientation 6. Ham piksellerde bulmaca düz, EXIF uygulanınca yan duruyor. `s042401168_11`'de EXIF 1, yani fotoğrafın kendisi dönük. EXIF'i yok saymak çözüm değil, çünkü `01–08` de EXIF 6 ile kayıtlı ve ancak EXIF uygulanınca düz görünüyor. Anotasyon koordinatlarının pipeline ile aynı olması için `analysis/annotate.py` yazıldı: görüntüyü pipeline'daki gibi `load_image` (`cv2.imread`) ile açıyor, köşeler 8× yakınlaştırılmış görünümde elle tıklanıyor ve kontrol için H4 önizlemesi gösteriliyor. Araç Harris veya `locate_corners` kullanmıyor, böylece anotasyon pipeline'ın sonucundan bağımsız kalıyor. Pipeline kodu bu araç için değiştirilmedi.
 - **Eğiklik ölçüsü:** A3 hatası eğiklikle büyüyor ama `side_ratio` ile birebir gitmiyor (`dev_20`: oran 1,64 → 177 px; `dev_07`: oran 1,57 → 261 px). Olası nedenler: tek eksene bakan oran tilt + pan birleşimini görmüyor, daralmanın yönü bırakılan köşeye göre önemli. Kendi ölçümü Faz 5'te tanımlayacağım (Stage 4).

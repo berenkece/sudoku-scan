@@ -2,11 +2,15 @@ import argparse
 import time
 from pathlib import Path
 
-from pipeline.io_utils import load_image, save_image, save_result
+from pipeline.io_utils import load_image, save_grid, save_image, save_result
 from pipeline.preprocess import preprocess
 from pipeline.corners import harris_response, find_candidates, locate_corners, to_working
 from pipeline.rectify import fit_models, warp_affine, warp_perspective
-from pipeline.visualize import draw_harris
+from pipeline.cells import filled_mask
+from pipeline.orient import orient
+from pipeline.ocr import recognize
+from pipeline.validate import find_conflicts, verdict
+from pipeline.visualize import draw_debug, draw_harris
 
 DEV_IMAGE = Path("data/dev/images/dev_01.jpg")
 DEFAULT_OUTDIR = Path("out")
@@ -45,20 +49,31 @@ def process_image(image_path, outdir):
     print(name, "number of candidates", len(candidates))
 
     corners = locate_corners(image, pre, response)
+    if corners is not None:
+        corners, cells, turn = orient(image, corners)
+        if turn:
+            print(name, "rotated corner order by", turn)
 
     corners_working = None if corners is None else to_working(corners, pre.scale)
     vis = draw_harris(pre.gray, response, candidates, corners_working)
     save_image(outdir / f"{name}_harris.png", vis)
 
-    rect = None
+    rect = grid = result = None
     if corners is not None:
         rect = fit_models(corners)
+        rectified = warp_perspective(image, rect.h4)
         save_image(outdir / f"{name}_a3.png", warp_affine(image, rect.a3))
         save_image(outdir / f"{name}_a4.png", warp_affine(image, rect.a4))
-        save_image(outdir / f"{name}_h4.png", warp_perspective(image, rect.h4))
+        save_image(outdir / f"{name}_h4.png", rectified)
 
-    save_result(outdir / f"{name}_result.json", image_path.name, corners, time.perf_counter() - start, rect)
-    print(name, "not_found" if corners is None else "corners found")
+        grid = recognize(cells)
+        conflicts = find_conflicts(grid)
+        result = verdict(conflicts)
+        save_grid(outdir / f"{name}_grid.txt", grid)
+        save_image(outdir / f"{name}_debug.png", draw_debug(rectified, grid, filled_mask(cells), conflicts))
+
+    save_result(outdir / f"{name}_result.json", image_path.name, corners, time.perf_counter() - start, rect, grid, result)
+    print(name, "not_found" if corners is None else result)
 
 def run_batch(folder, outdir):
     images = list_images(folder)
@@ -70,6 +85,7 @@ def run_batch(folder, outdir):
 
         except Exception as e:
             print(img.name, e)
+            save_result(outdir / f"{img.stem}_result.json", img.name, None, 0.0)
 
     print(f"{n_ok}/{len(images)} processed.")
 

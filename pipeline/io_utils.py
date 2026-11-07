@@ -24,20 +24,26 @@ def load_annotation(path):
     return (corners, grids)
 
 
-def save_result(path, image_name, corners, runtime_s, rect=None):
+def save_result(path, image_name, corners, runtime_s, rect=None, grid=None, verdict=None):
     path.parent.mkdir(parents=True, exist_ok=True)
     result = {
         "image": image_name,
         "conditions": [],
         "corners": None if corners is None else corners.tolist(),
-        "grid": None,
+        "grid": None if grid is None else [[int(v) for v in row] for row in grid],
         "A3": None if rect is None else rect.a3.tolist(),
         "A4": None if rect is None else rect.a4.tolist(),
         "H4": None if rect is None else rect.h4.tolist(),
         "a3_corner_err_px": None if rect is None else rect.a3_corner_err_px,
         "a4_rms_px": None if rect is None else rect.a4_rms_px,
-        "verdict": "not_found" if corners is None else None,
+        "verdict": "not_found" if corners is None else verdict,
         "runtime_s": runtime_s,
     }
     with open(path, "w") as f:
         json.dump(result, f, indent=2)
+
+
+def save_grid(path, grid):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as f:
+        f.write("".join("".join(str(int(v)) for v in row) + "\n" for row in grid))
