@@ -24,18 +24,18 @@ def load_annotation(path):
     return (corners, grids)
 
 
-def save_result(path, image_name, corners, runtime_s):
+def save_result(path, image_name, corners, runtime_s, rect=None):
     path.parent.mkdir(parents=True, exist_ok=True)
     result = {
         "image": image_name,
         "conditions": [],
         "corners": None if corners is None else corners.tolist(),
         "grid": None,
-        "A3": None,
-        "A4": None,
-        "H4": None,
-        "a3_corner_err_px": None,
-        "a4_rms_px": None,
+        "A3": None if rect is None else rect.a3.tolist(),
+        "A4": None if rect is None else rect.a4.tolist(),
+        "H4": None if rect is None else rect.h4.tolist(),
+        "a3_corner_err_px": None if rect is None else rect.a3_corner_err_px,
+        "a4_rms_px": None if rect is None else rect.a4_rms_px,
         "verdict": "not_found" if corners is None else None,
         "runtime_s": runtime_s,
     }

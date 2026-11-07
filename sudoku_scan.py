@@ -5,6 +5,7 @@ from pathlib import Path
 from pipeline.io_utils import load_image, save_image, save_result
 from pipeline.preprocess import preprocess
 from pipeline.corners import harris_response, find_candidates, locate_corners, to_working
+from pipeline.rectify import fit_models, warp_affine, warp_perspective
 from pipeline.visualize import draw_harris
 
 DEV_IMAGE = Path("data/dev/images/dev_01.jpg")
@@ -49,7 +50,14 @@ def process_image(image_path, outdir):
     vis = draw_harris(pre.gray, response, candidates, corners_working)
     save_image(outdir / f"{name}_harris.png", vis)
 
-    save_result(outdir / f"{name}_result.json", image_path.name, corners, time.perf_counter() - start)
+    rect = None
+    if corners is not None:
+        rect = fit_models(corners)
+        save_image(outdir / f"{name}_a3.png", warp_affine(image, rect.a3))
+        save_image(outdir / f"{name}_a4.png", warp_affine(image, rect.a4))
+        save_image(outdir / f"{name}_h4.png", warp_perspective(image, rect.h4))
+
+    save_result(outdir / f"{name}_result.json", image_path.name, corners, time.perf_counter() - start, rect)
     print(name, "not_found" if corners is None else "corners found")
 
 def run_batch(folder, outdir):
