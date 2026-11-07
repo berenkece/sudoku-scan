@@ -1,8 +1,10 @@
 import cv2
 import numpy as np
 
+CORNER_NAMES = ["TL", "TR", "BR", "BL"]
 
-def draw_harris(gray, response, candidates):
+
+def draw_harris(gray, response, candidates, corners=None):
 
     positive = np.clip(response, 0, None)
     compressed = np.sqrt(positive)
@@ -17,4 +19,13 @@ def draw_harris(gray, response, candidates):
 
     cv2.putText(vis, f"candidates: {len(candidates)}", (10, 30),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+
+    if corners is not None:
+        for name, (x, y) in zip(CORNER_NAMES, corners):
+            center = (int(round(x)), int(round(y)))
+            cv2.circle(vis, center, 8, (0, 0, 255), 2)
+            cv2.putText(vis, name, (center[0] + 10, center[1] - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 4)
+            cv2.putText(vis, name, (center[0] + 10, center[1] - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
     return vis

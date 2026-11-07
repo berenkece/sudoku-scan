@@ -1,9 +1,10 @@
 import argparse
+import time
 from pathlib import Path
 
-from pipeline.io_utils import load_image, save_image
+from pipeline.io_utils import load_image, save_image, save_result
 from pipeline.preprocess import preprocess
-from pipeline.corners import harris_response, find_candidates, to_original
+from pipeline.corners import harris_response, find_candidates, locate_corners, to_working
 from pipeline.visualize import draw_harris
 
 DEV_IMAGE = Path("data/dev/images/dev_01.jpg")
@@ -31,6 +32,7 @@ def list_images(folder):
 
 def process_image(image_path, outdir):
 
+    start = time.perf_counter()
     name = image_path.stem
 
     image = load_image(image_path)
@@ -39,14 +41,16 @@ def process_image(image_path, outdir):
     pre = preprocess(image)
     response = harris_response(pre.gray)
     candidates = find_candidates(response)
-    candidates_orig = to_original(candidates, pre.scale)
     print(name, "number of candidates", len(candidates))
 
-    vis = draw_harris(pre.gray, response, candidates)
+    corners = locate_corners(image, pre, response)
+
+    corners_working = None if corners is None else to_working(corners, pre.scale)
+    vis = draw_harris(pre.gray, response, candidates, corners_working)
     save_image(outdir / f"{name}_harris.png", vis)
 
-    #  İleriki fazlar 
-    # Faz 2: candidates_orig içinden dış 4 köşeyi seç -> rectify -> cells/ocr -> validate
+    save_result(outdir / f"{name}_result.json", image_path.name, corners, time.perf_counter() - start)
+    print(name, "not_found" if corners is None else "corners found")
 
 def run_batch(folder, outdir):
     images = list_images(folder)
