@@ -169,7 +169,7 @@ HARRIS_PANELS = [
     ("HARRIS_K", "k"),
     ("HARRIS_PEAK_REL", "peak threshold in window"),
     ("HARRIS_SEARCH_PX", "search window (px)"),
-    ("SUBPIX_WIN_PX", "cornerSubPix window (px, 0 = off)"),
+    ("SUBPIX_WIN_PX", "cornerSubPix win (px, 0=off)"),
 ]
 
 
@@ -200,7 +200,7 @@ def harris_figure():
     counts = [np.mean([float(r["candidates"]) for r in rows if r["param"] == "THRESH_REL" and r["value"] == v]) for v in values]
     ax.plot(np.arange(len(values)), counts, color=harris_color, marker="o", markersize=4, linewidth=1.5)
     ax.set_xticks(np.arange(len(values)), values)
-    style(ax, "candidate threshold (ratio of R.max)", "candidates per image")
+    style(ax, "candidate threshold (x R.max)", "candidates per image")
     ax = axes.ravel()[7]
     values = sorted({r["value"] for r in block_all}, key=float)
     means = [np.mean([float(r["corner_err_pct"]) for r in block_all if r["value"] == v]) for v in values]
@@ -211,6 +211,8 @@ def harris_figure():
     style(ax, "blockSize, all 32 images", "final corner error (%)")
     ax.legend(fontsize=6, frameon=False, labelcolor=INK_SECONDARY)
     axes.ravel()[0].legend(fontsize=6, frameon=False, labelcolor=INK_SECONDARY)
+    for ax in axes.ravel():
+        ax.tick_params(axis="x", labelrotation=45, labelsize=7)
     fig.patch.set_facecolor(SURFACE)
     fig.tight_layout()
     fig.savefig(FIG_DIR / "harris_params.png", dpi=DPI, facecolor=SURFACE)
