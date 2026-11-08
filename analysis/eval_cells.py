@@ -11,7 +11,7 @@ from pipeline.preprocess import preprocess
 
 IMAGE_DIR = Path("data/dev/images")
 ANNOTATION_DIR = Path("data/dev/annotations")
-MARGINS = (0.04, 0.06, 0.08, 0.10, 0.12, 0.15, 0.18)
+GROWS = (0.0, 0.05, 0.10, 0.15, 0.20, 0.25)
 BANDS = (0.10, 0.15, 0.20, 0.25)
 
 
@@ -28,10 +28,10 @@ def rectify_dev():
     return images
 
 
-def evaluate(images, margin):
+def evaluate(images, grow):
     preds, truths, errors = [], [], []
     for name, rectified, truth in images:
-        pred = filled_mask(split_cells(rectified, margin))
+        pred = filled_mask(split_cells(rectified, grow_ratio=grow))
         preds.append(pred)
         truths.append(truth)
         wrong = np.argwhere(pred != truth)
@@ -42,16 +42,16 @@ def evaluate(images, margin):
 
 
 def report(images):
-    print("band  margin  F1(empty)  F1(filled)  empty->filled  filled->empty")
+    print("band  grow  F1(empty)  F1(filled)  empty->filled  filled->empty")
     default_band = cells.CENTER_BAND
     for band in BANDS:
         cells.CENTER_BAND = band
-        for margin in MARGINS:
-            f1_empty, f1_filled, false_filled, false_empty, _ = evaluate(images, margin)
-            print(f"{band:4.2f} {margin:7.2f} {f1_empty:10.4f} {f1_filled:11.4f} {false_filled:14d} {false_empty:14d}")
+        for grow in GROWS:
+            f1_empty, f1_filled, false_filled, false_empty, _ = evaluate(images, grow)
+            print(f"{band:4.2f} {grow:5.2f} {f1_empty:10.4f} {f1_filled:11.4f} {false_filled:14d} {false_empty:14d}")
     cells.CENTER_BAND = default_band
-    print(f"errors at band {cells.CENTER_BAND}, margin {cells.MARGIN_RATIO}:")
-    for name, wrong in evaluate(images, cells.MARGIN_RATIO)[4]:
+    print(f"errors at band {cells.CENTER_BAND}, grow {cells.GROW_RATIO}:")
+    for name, wrong in evaluate(images, cells.GROW_RATIO)[4]:
         print(f"  {name}: {wrong}")
 
 

@@ -1,4 +1,9 @@
+# Tesseract OCR is not a Python package and must be installed separately:
+#   macOS:          brew install tesseract
+#   Ubuntu/Debian:  sudo apt install tesseract-ocr
+#   check with:     tesseract --version
 numpy>=1.26,<3
 opencv-python>=4.8,<5
 Pillow>=10,<12
 pytesseract>=0.3.10,<1
+matplotlib>=3.8,<4

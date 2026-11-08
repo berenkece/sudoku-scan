@@ -13,6 +13,9 @@ MIN_DIGIT_HEIGHT = 0.3
 MIN_DIGIT_AREA = 0.02
 MIN_PART_AREA = 0.005
 CENTER_BAND = 0.15
+GROW_RATIO = 0.15
+LINE_LENGTH_RATIO = 1.0
+MAX_PART_GAP = 0.06
 
 
 class Cell(NamedTuple):
@@ -41,36 +44,65 @@ def cell_bounds(shape, row, col, margin_ratio):
     return y0, y1, x0, x1
 
 
-def find_digit(binary, cell_h, cell_w):
-    count, labels, stats, centroids = cv2.connectedComponentsWithStats(binary, connectivity=8)
-    height, width = binary.shape
-    digit = np.zeros_like(binary)
+def remove_lines(binary, cell_size):
+    length = round(LINE_LENGTH_RATIO * cell_size)
+    horizontal = cv2.morphologyEx(binary, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (length, 1)))
+    vertical = cv2.morphologyEx(binary, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (1, length)))
+    lines = cv2.dilate(cv2.max(horizontal, vertical), np.ones((3, 3), np.uint8))
+    return cv2.bitwise_and(binary, cv2.bitwise_not(lines))
+
+
+def box_gap(a, b):
+    ax, ay, aw, ah = a
+    bx, by, bw, bh = b
+    dx = max(bx - (ax + aw), ax - (bx + bw), 0)
+    dy = max(by - (ay + ah), ay - (by + bh), 0)
+    return float(np.hypot(dx, dy))
+
+
+def find_digit(ink, cell_box, cell_h, cell_w):
+    count, labels, stats, centroids = cv2.connectedComponentsWithStats(ink, connectivity=8)
+    height, width = ink.shape
+    top, bottom, left, right = cell_box
+    band_y, band_x = CENTER_BAND * (bottom - top), CENTER_BAND * (right - left)
+    parts = []
     for label in range(1, count):
-        _, _, w, h, area = stats[label]
+        x, y, w, h, area = stats[label]
         if area < MIN_PART_AREA * cell_h * cell_w or w == width or h == height:
             continue
         cx, cy = centroids[label]
-        if CENTER_BAND * width <= cx <= (1 - CENTER_BAND) * width and CENTER_BAND * height <= cy <= (1 - CENTER_BAND) * height:
+        if left + band_x <= cx <= right - band_x and top + band_y <= cy <= bottom - band_y:
+            parts.append((area, label, (x, y, w, h)))
+    if not parts:
+        return None
+    _, main_label, main_box = max(parts)
+    max_gap = MAX_PART_GAP * min(cell_h, cell_w)
+    digit = np.zeros_like(ink)
+    for _, label, box in parts:
+        if label == main_label or box_gap(main_box, box) <= max_gap:
             digit[labels == label] = 255
     ys, xs = np.nonzero(digit)
-    if len(ys) == 0:
-        return None
     if ys.max() - ys.min() + 1 < MIN_DIGIT_HEIGHT * cell_h or len(ys) < MIN_DIGIT_AREA * cell_h * cell_w:
         return None
     return digit
 
 
-def split_cells(rectified, margin_ratio=MARGIN_RATIO):
+def split_cells(rectified, margin_ratio=MARGIN_RATIO, grow_ratio=GROW_RATIO):
     gray = to_gray(rectified)
-    binary = binarize(gray)
-    cell_h, cell_w = gray.shape[0] / CELLS, gray.shape[1] / CELLS
+    height, width = gray.shape
+    cell_h, cell_w = height / CELLS, width / CELLS
+    ink = remove_lines(binarize(gray), min(cell_h, cell_w))
     grid = []
     for row in range(CELLS):
         cells = []
         for col in range(CELLS):
             y0, y1, x0, x1 = cell_bounds(gray.shape, row, col, margin_ratio)
-            cell_binary = binary[y0:y1, x0:x1]
-            cells.append(Cell(gray[y0:y1, x0:x1], cell_binary, find_digit(cell_binary, cell_h, cell_w)))
+            wy0, wy1, wx0, wx1 = cell_bounds(gray.shape, row, col, -grow_ratio)
+            wy0, wx0, wy1, wx1 = max(wy0, 0), max(wx0, 0), min(wy1, height), min(wx1, width)
+            cy0, cy1, cx0, cx1 = cell_bounds(gray.shape, row, col, 0.0)
+            window = ink[wy0:wy1, wx0:wx1]
+            cell_box = (cy0 - wy0, cy1 - wy0, cx0 - wx0, cx1 - wx0)
+            cells.append(Cell(gray[y0:y1, x0:x1], window, find_digit(window, cell_box, cell_h, cell_w)))
         grid.append(cells)
     return grid
 

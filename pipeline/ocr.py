@@ -5,11 +5,13 @@ import numpy as np
 import pytesseract
 
 from pipeline.cells import CELLS
+from pipeline.digit_rules import choose_digit, digit_features
 
 DEFAULT_PSM = 10
-FALLBACK_PSMS = (8, 7)
+READ_PSMS = (10, 8)
+RAW_PSMS = (10, 8, 7)
 WHITELIST = "123456789"
-DIGIT_HEIGHTS_PX = (40, 24, 32)
+DIGIT_HEIGHTS_PX = (24, 32, 40)
 PAD_RATIO = 0.5
 OCR_WORKERS = 8
 
@@ -18,7 +20,7 @@ def tesseract_config(psm):
     return f"--psm {psm} -c tessedit_char_whitelist={WHITELIST}"
 
 
-def prepare(cell, digit_height=DIGIT_HEIGHTS_PX[0]):
+def prepare(cell, digit_height=DIGIT_HEIGHTS_PX[-1]):
     ys, xs = np.nonzero(cell.digit)
     digit = cell.digit[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
     scale = digit_height / digit.shape[0]
@@ -47,23 +49,36 @@ def digit_confidence(image, psm=DEFAULT_PSM):
     return max(confidences) if confidences else 0.0
 
 
-def recognize_cell(cell, psm=DEFAULT_PSM, prepared=True):
-    psms = (psm,) + tuple(p for p in FALLBACK_PSMS if p != psm)
-    heights = DIGIT_HEIGHTS_PX if prepared else (None,)
-    for height in heights:
-        image = prepare(cell, height) if prepared else cell.gray
-        for attempt in psms:
-            digit = read_digit(image, attempt)
+def read_candidate(image, psm):
+    data = pytesseract.image_to_data(image, config=tesseract_config(psm), output_type=pytesseract.Output.DICT)
+    words = [(text.strip(), float(conf)) for text, conf in zip(data["text"], data["conf"]) if text.strip()]
+    if not words or len(words[0][0]) != 1:
+        return None
+    return int(words[0][0]), words[0][1]
+
+
+def recognize_cell(cell, psms=READ_PSMS, prepared=True):
+    if not prepared:
+        for psm in psms:
+            digit = read_digit(cell.gray, psm)
             if digit is not None:
                 return digit
-    return 0
+        return 0
+    candidates = []
+    for height in DIGIT_HEIGHTS_PX:
+        image = prepare(cell, height)
+        for psm in psms:
+            candidate = read_candidate(image, psm)
+            if candidate is not None:
+                candidates.append(candidate)
+    return choose_digit(candidates, digit_features(cell.digit))
 
 
-def recognize(cells, psm=DEFAULT_PSM, prepared=True):
+def recognize(cells, psms=READ_PSMS, prepared=True):
     grid = np.zeros((CELLS, CELLS), dtype=int)
     filled = [(row, col) for row in range(CELLS) for col in range(CELLS) if cells[row][col].digit is not None]
     with ThreadPoolExecutor(OCR_WORKERS) as pool:
-        digits = pool.map(lambda pos: recognize_cell(cells[pos[0]][pos[1]], psm, prepared), filled)
+        digits = pool.map(lambda pos: recognize_cell(cells[pos[0]][pos[1]], psms, prepared), filled)
         for (row, col), digit in zip(filled, digits):
             grid[row, col] = digit
     return grid

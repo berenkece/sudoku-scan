@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from pipeline.preprocess import odd_kernel, to_gray
 
-HARRIS_BLOCK_RATIO = 0.005  # uzun kenarın oranı (~7 px); köşe arama penceresi, blur ile aynı ölçekte
+HARRIS_BLOCK_RATIO = 0.004  # uzun kenarın oranı (~5 px); köşe arama penceresi
 HARRIS_KSIZE = 3            # Sobel kernel'ı; blur zaten yapıldığı için en küçüğü yeterli
 HARRIS_K = 0.04             # önerilen 0.04-0.06 aralığının altı; köşe kaçırmamayı öne alır
 THRESH_REL = 0.01           # R.max()'ın oranı; dev set'te 20/20 görüntüde dış köşeler aday, 108-432 aday
@@ -13,7 +13,7 @@ MIN_AREA_RATIO = 0.02
 CORNER_SUPPORT_PX = 6
 HARRIS_SEARCH_PX = 6
 HARRIS_PEAK_REL = 0.1
-SUBPIX_WIN_PX = 5
+SUBPIX_WIN_PX = 3
 SUBPIX_CRITERIA = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 40, 0.01)
 
 
